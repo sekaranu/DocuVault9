@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocuVault - Password Protected Smart Document Organizer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#0284c7',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        .dark ::-webkit-scrollbar-thumb { background: #334155; }
+        .pin-dot.filled { background-color: #0284c7; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 h-full overflow-hidden transition-colors duration-200">
+
+    <!-- APP-LEVEL LOCK SCREEN (FIRST RUN SETUP OR AUTH UNLOCK) -->
+    <div id="appLockScreen" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 w-full max-w-md rounded-3xl p-8 border border-slate-800 shadow-2xl text-center relative overflow-hidden">
+            <div class="w-16 h-16 rounded-2xl bg-brand-600 text-white flex items-center justify-center font-bold text-2xl mx-auto mb-4 shadow-lg shadow-brand-500/30">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            
+            <h2 id="authScreenTitle" class="text-2xl font-bold text-white mb-1">Unlock DocuVault</h2>
+            <p id="authScreenSubtitle" class="text-xs text-slate-400 mb-4">Enter your master passcode to access your documents</p>
+
+            <!-- PIN LENGTH SELECTOR (FOR SETUP OR CHANGE) -->
+            <div id="pinLengthOption" class="flex justify-center items-center gap-3 mb-4 hidden">
+                <span class="text-xs text-slate-400 font-medium">Passcode Length:</span>
+                <button onclick="setPasscodeLength(4)" id="lenBtn4" class="px-3 py-1 text-xs rounded-lg bg-brand-600 text-white font-bold border border-brand-500">4 Digits</button>
+                <button onclick="setPasscodeLength(6)" id="lenBtn6" class="px-3 py-1 text-xs rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-semibold border border-slate-700">6 Digits</button>
+            </div>
+
+            <!-- PIN DISPLAY DOTS -->
+            <div id="pinDotsContainer" class="flex justify-center space-x-3 mb-6">
+                <!-- Populated dynamically based on 4 or 6 digit setting -->
+            </div>
+
+            <!-- KEYPAD -->
+            <div class="grid grid-cols-3 gap-3 max-w-xs mx-auto mb-6">
+                <button onclick="pressKeypad('1')" class="py-3 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-2xl text-xl font-bold transition">1</button>
+                <button onclick="pressKeypad('2')" class="py-3 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-2xl text-xl font-bold transition">2</button>
+                <button onclick="pressKeypad('3')" class="py-3 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-2xl text-xl font-bold transition">3</button>
+                <button onclick="pressKeypad('4')" class="py-3 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-2xl text-xl font-bold transition">4</button>
+                <button onclick="pressKeypad('5')" class="py-3 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-2xl text-xl font-bold transition">5</button>
+                <button onclick="pressKeypad('6')" class="py-3 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-2xl text-xl font-bold transition">6</button>
+                <button onclick="pressKeypad('7')" class="py-3 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-2xl text-xl font-bold transition">7</button>
+                <button onclick="pressKeypad('8')" class="py-3 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-2xl text-xl font-bold transition">8</button>
+                <button onclick="pressKeypad('9')" class="py-3 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-2xl text-xl font-bold transition">9</button>
+                <button onclick="clearKeypad()" class="py-3 bg-slate-800/50 hover:bg-slate-800 text-slate-400 rounded-2xl text-xs font-semibold uppercase tracking-wider">Clear</button>
+                <button onclick="pressKeypad('0')" class="py-3 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-2xl text-xl font-bold transition">0</button>
+                <button onclick="deleteKeypadDigit()" class="py-3 bg-slate-800/50 hover:bg-slate-800 text-slate-400 rounded-2xl text-sm transition"><i class="fa-solid fa-backspace"></i></button>
+            </div>
+
+            <!-- ERROR MSG -->
+            <p id="authErrorMsg" class="text-rose-500 text-xs font-semibold hidden mb-4"><i class="fa-solid fa-circle-exclamation mr-1"></i> Incorrect passcode</p>
+
+            <button id="resetPasscodeBtn" onclick="triggerResetPasscode()" class="text-xs text-slate-500 hover:text-slate-300 underline">Reset Vault Data & Passcode</button>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="mainApp" class="h-full flex flex-col md:flex-row overflow-hidden bg-slate-900 text-slate-100">
+
+        <!-- Mobile Header -->
+        <header class="md:hidden bg-slate-800 border-b border-slate-700 p-4 flex items-center justify-between z-20">
+            <div class="flex items-center space-x-2">
+                <div class="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
+                    <i class="fa-solid font-bold fa-box-archive"></i>
+                </div>
+                <span class="font-bold text-xl tracking-tight text-white">DocuVault</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="openPasscodeChangeModal()" class="p-2 rounded-lg text-slate-400 hover:bg-slate-700 text-xs flex items-center gap-1" title="Passcode Settings">
+                    <i class="fa-solid fa-key text-brand-400"></i>
+                </button>
+                <button onclick="lockApp()" class="p-2 rounded-lg text-slate-400 hover:bg-slate-700 text-xs flex items-center gap-1">
+                    <i class="fa-solid fa-lock text-rose-400"></i>
+                </button>
+                <button id="mobileMenuBtn" class="p-2 rounded-lg text-slate-300 hover:bg-slate-700">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-30 w-64 bg-slate-800 border-r border-slate-700 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col justify-between md:relative md:flex shrink-0">
+            <div class="p-5 overflow-y-auto">
+                <!-- App Logo -->
+                <div class="hidden md:flex items-center space-x-3 mb-8">
+                    <div class="w-10 h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-brand-500/20">
+                        <i class="fa-solid fa-box-archive"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-xl tracking-tight text-white">DocuVault</h1>
+                        <p class="text-xs text-slate-400 font-medium">Smart Protected Hub</p>
+                    </div>
+                </div>
+
+                <!-- Upload Button -->
+                <button onclick="openUploadModal()" class="w-full mb-6 py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-medium shadow-lg shadow-brand-600/20 flex items-center justify-center space-x-2 transition-all transform hover:-translate-y-0.5 active:translate-y-0">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Upload Document</span>
+                </button>
+
+                <!-- Main Nav Section -->
+                <div class="space-y-1">
+                    <p class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Main</p>
+                    <a href="#" data-view="dashboard" class="nav-item flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/50 active-nav">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid fa-chart-pie w-5 text-center text-slate-400"></i>
+                            <span>Dashboard</span>
+                        </div>
+                    </a>
+                    <a href="#" data-view="documents" class="nav-item flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/50">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid fa-file-lines w-5 text-center text-slate-400"></i>
+                            <span>All Documents</span>
+                        </div>
+                        <span id="allDocCountBadge" class="bg-slate-700 text-slate-300 text-xs px-2 py-0.5 rounded-full font-semibold">0</span>
+                    </a>
+                    <a href="#" data-view="expiring" class="nav-item flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/50">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid fa-clock-rotate-left w-5 text-center text-amber-500"></i>
+                            <span>Expiring Soon</span>
+                        </div>
+                        <span id="expiringBadge" class="bg-amber-900/40 text-amber-400 text-xs px-2 py-0.5 rounded-full font-semibold">0</span>
+                    </a>
+                    <a href="#" data-view="favorites" class="nav-item flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/50">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid fa-star w-5 text-center text-yellow-500"></i>
+                            <span>Starred / Favorites</span>
+                        </div>
+                        <span id="favoritesBadge" class="bg-slate-700 text-slate-300 text-xs px-2 py-0.5 rounded-full font-semibold">0</span>
+                    </a>
+                    <a href="#" data-view="vault" class="nav-item flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/50">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid fa-shield-halved w-5 text-center text-rose-500"></i>
+                            <span>Private Vault</span>
+                        </div>
+                        <i class="fa-solid fa-lock text-xs text-slate-400"></i>
+                    </a>
+                </div>
+
+                <!-- Categories Nav -->
+                <div class="mt-8 space-y-1">
+                    <div class="flex items-center justify-between px-3 mb-2">
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Categories</p>
+                    </div>
+                    <div id="categoryNavList" class="space-y-0.5">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar Footer -->
+            <div class="p-4 border-t border-slate-700 flex items-center justify-between bg-slate-800/50">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center font-bold text-slate-300">
+                        <i class="fa-solid fa-user-shield text-xs text-brand-400"></i>
+                    </div>
+                    <div class="text-xs">
+                        <p class="font-semibold text-slate-200">Encrypted Vault</p>
+                        <p class="text-slate-400 text-[10px]" id="sidebarPasscodeLabel">4-Digit Passcode</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button onclick="openPasscodeChangeModal()" title="Passcode Settings" class="p-2 rounded-lg text-slate-400 hover:bg-slate-700 hover:text-brand-400 transition">
+                        <i class="fa-solid fa-key"></i>
+                    </button>
+                    <button onclick="lockApp()" title="Lock Session" class="p-2 rounded-lg text-slate-400 hover:bg-slate-700 hover:text-rose-400 transition">
+                        <i class="fa-solid fa-power-off"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Overlay for mobile menu -->
+        <div id="mobileOverlay" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-20 hidden md:hidden"></div>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-slate-900">
+            
+            <!-- Top Search Header -->
+            <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between gap-4">
+                <div class="flex-1 max-w-2xl relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text" id="globalSearchInput" placeholder="Search files, keywords, notes, tags..." class="w-full pl-10 pr-10 py-2 bg-slate-700/50 border border-slate-600 rounded-xl text-sm focus:outline-none focus:bg-slate-800 focus:border-brand-500 text-slate-100 transition-all">
+                    <button id="clearSearchBtn" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </button>
+                </div>
+                
+                <div class="flex items-center space-x-3">
+                    <button onclick="openPasscodeChangeModal()" class="px-3 py-2 bg-slate-700/60 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold border border-slate-600 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-key text-brand-400"></i>
+                        <span class="hidden sm:inline">Passcode Settings</span>
+                    </button>
+                    <button onclick="lockApp()" class="px-3 py-2 bg-slate-700/60 hover:bg-rose-900/40 text-slate-300 hover:text-rose-300 rounded-xl text-xs font-semibold border border-slate-600 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-lock text-rose-400"></i>
+                        <span class="hidden sm:inline">Lock Session</span>
+                    </button>
+                    <button onclick="exportData()" title="Backup Data to JSON" class="p-2 text-slate-300 hover:bg-slate-700 rounded-lg text-sm flex items-center space-x-1.5 border border-slate-700">
+                        <i class="fa-solid fa-cloud-arrow-down text-brand-400"></i>
+                        <span class="hidden sm:inline font-medium text-xs">Backup</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Scrollable View Container -->
+            <div id="contentArea" class="flex-1 overflow-y-auto p-4 md:p-8">
+                
+                <!-- DASHBOARD VIEW -->
+                <section id="view-dashboard" class="view-panel space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-2xl font-bold text-white">Document Dashboard</h2>
+                            <p class="text-sm text-slate-400">Overview of protected files, storage usage, and expirations.</p>
+                        </div>
+                        <div class="text-xs text-slate-400 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 self-start flex items-center gap-2">
+                            <i class="fa-solid fa-shield-halved text-emerald-400"></i> Master Passcode Enabled
+                        </div>
+                    </div>
+
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700/80 shadow-sm">
+                            <div class="flex items-center justify-between text-slate-400 mb-3">
+                                <span class="text-xs font-semibold uppercase tracking-wider">Total Docs</span>
+                                <div class="w-8 h-8 rounded-lg bg-blue-900/30 text-blue-400 flex items-center justify-center">
+                                    <i class="fa-solid fa-folder"></i>
+                                </div>
+                            </div>
+                            <p id="statTotalDocs" class="text-2xl font-bold text-white">0</p>
+                        </div>
+
+                        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700/80 shadow-sm">
+                            <div class="flex items-center justify-between text-slate-400 mb-3">
+                                <span class="text-xs font-semibold uppercase tracking-wider">Expiring Soon</span>
+                                <div class="w-8 h-8 rounded-lg bg-amber-900/30 text-amber-400 flex items-center justify-center">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                </div>
+                            </div>
+                            <p id="statExpiringDocs" class="text-2xl font-bold text-amber-400">0</p>
+                        </div>
+
+                        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700/80 shadow-sm">
+                            <div class="flex items-center justify-between text-slate-400 mb-3">
+                                <span class="text-xs font-semibold uppercase tracking-wider">Starred Items</span>
+                                <div class="w-8 h-8 rounded-lg bg-yellow-900/30 text-yellow-400 flex items-center justify-center">
+                                    <i class="fa-solid fa-star"></i>
+                                </div>
+                            </div>
+                            <p id="statFavoriteDocs" class="text-2xl font-bold text-white">0</p>
+                        </div>
+
+                        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700/80 shadow-sm">
+                            <div class="flex items-center justify-between text-slate-400 mb-3">
+                                <span class="text-xs font-semibold uppercase tracking-wider">In Vault</span>
+                                <div class="w-8 h-8 rounded-lg bg-rose-900/30 text-rose-400 flex items-center justify-center">
+                                    <i class="fa-solid fa-user-lock"></i>
+                                </div>
+                            </div>
+                            <p id="statVaultDocs" class="text-2xl font-bold text-white">0</p>
+                        </div>
+                    </div>
+
+                    <!-- Storage Bar Gauge -->
+                    <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700/80">
+                        <div class="flex justify-between items-center text-xs mb-2">
+                            <span class="font-semibold text-slate-300"><i class="fa-solid fa-hard-drive text-brand-400 mr-2"></i> Simulated Vault Storage</span>
+                            <span id="storageGaugeText" class="text-slate-400">12.4 MB / 100 MB Used</span>
+                        </div>
+                        <div class="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                            <div id="storageGaugeBar" class="bg-brand-500 h-full transition-all duration-500" style="width: 12.4%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Expiring Alerts Banner -->
+                    <div class="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center space-x-2">
+                                <i class="fa-solid fa-bell text-amber-400 text-lg"></i>
+                                <h3 class="font-bold text-white">Expiration Reminders</h3>
+                            </div>
+                            <button onclick="switchView('expiring')" class="text-xs font-semibold text-amber-400 hover:underline">View All Expiries &rarr;</button>
+                        </div>
+                        <div id="dashExpiringList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Main Grid: Recently Added & Checklist -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 bg-slate-800 rounded-2xl p-5 border border-slate-700/80 shadow-sm">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-bold text-white">Recently Uploaded</h3>
+                                <button onclick="switchView('documents')" class="text-xs font-semibold text-brand-400 hover:underline">Browse All</button>
+                            </div>
+                            <div id="recentDocsList" class="divide-y divide-slate-700/50">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+
+                        <!-- Missing/Required Documents Checklist -->
+                        <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700/80 shadow-sm flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between mb-3">
+                                    <h3 class="font-bold text-white flex items-center gap-2">
+                                        <i class="fa-solid fa-list-check text-brand-400"></i> Essential Documents
+                                    </h3>
+                                    <span class="text-xs bg-brand-900/30 text-brand-400 px-2 py-0.5 rounded font-medium">Checklist</span>
+                                </div>
+                                <p class="text-xs text-slate-400 mb-4">Ensure key life documents are safely locked in vault.</p>
+                                
+                                <div id="missingChecklist" class="space-y-3">
+                                    <!-- JS Populated Checklist -->
+                                </div>
+                            </div>
+                            <div class="mt-6 pt-4 border-t border-slate-700/60">
+                                <div class="flex justify-between text-xs text-slate-400 mb-1">
+                                    <span>Vault Completeness</span>
+                                    <span id="checklistPercent">0%</span>
+                                </div>
+                                <div class="w-full bg-slate-700 rounded-full h-2">
+                                    <div id="checklistBar" class="bg-brand-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ALL DOCUMENTS VIEW -->
+                <section id="view-documents" class="view-panel hidden space-y-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h2 id="docViewTitle" class="text-2xl font-bold text-white">All Documents</h2>
+                            <p class="text-sm text-slate-400">Filter, search, organize, and view all registered files.</p>
+                        </div>
+
+                        <div class="flex items-center space-x-2">
+                            <select id="categoryFilter" class="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-brand-500">
+                                <option value="ALL">All Categories</option>
+                            </select>
+
+                            <select id="sortBySelect" class="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-brand-500">
+                                <option value="newest">Newest First</option>
+                                <option value="oldest">Oldest First</option>
+                                <option value="title">Title A-Z</option>
+                                <option value="expiry">Expiration Date</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="tagFilterBar" class="flex flex-wrap items-center gap-2 pt-1">
+                        <span class="text-xs text-slate-500 font-medium mr-1">Quick Tag Filters:</span>
+                    </div>
+
+                    <div id="documentGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <!-- Populated dynamically by JS -->
+                    </div>
+
+                    <div id="noDocsState" class="hidden text-center py-16 bg-slate-800 rounded-2xl border border-dashed border-slate-700">
+                        <div class="w-16 h-16 rounded-full bg-slate-700 text-slate-400 flex items-center justify-center mx-auto mb-4 text-2xl">
+                            <i class="fa-regular fa-folder-open"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-200 text-lg">No documents found</h3>
+                        <p class="text-sm text-slate-400 mt-1 max-w-sm mx-auto">Try adjusting search criteria or upload a new file.</p>
+                        <button onclick="openUploadModal()" class="mt-4 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition">
+                            Upload Document
+                        </button>
+                    </div>
+                </section>
+
+                <!-- EXPIRING SOON VIEW -->
+                <section id="view-expiring" class="view-panel hidden space-y-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-white">Expiration Tracker</h2>
+                        <p class="text-sm text-slate-400">Track licenses, passports, insurance policies, and contracts needing renewal.</p>
+                    </div>
+
+                    <div class="flex border-b border-slate-700 space-x-6">
+                        <button class="expiry-tab text-sm font-semibold pb-3 text-brand-400 border-b-2 border-brand-400" data-days="all">All Timelines</button>
+                        <button class="expiry-tab text-sm font-semibold pb-3 text-slate-400 border-b-2 border-transparent hover:text-slate-200" data-days="30">Within 30 Days</button>
+                        <button class="expiry-tab text-sm font-semibold pb-3 text-slate-400 border-b-2 border-transparent hover:text-slate-200" data-days="90">Within 90 Days</button>
+                        <button class="expiry-tab text-sm font-semibold pb-3 text-slate-400 border-b-2 border-transparent hover:text-slate-200" data-days="expired">Already Expired</button>
+                    </div>
+
+                    <div id="expiryList" class="space-y-3">
+                        <!-- JS Populated -->
+                    </div>
+                </section>
+
+                <!-- FAVORITES VIEW -->
+                <section id="view-favorites" class="view-panel hidden space-y-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-white">Starred Documents</h2>
+                        <p class="text-sm text-slate-400">Your prioritized, frequently accessed files.</p>
+                    </div>
+                    <div id="favoritesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <!-- JS Populated -->
+                    </div>
+                </section>
+
+                <!-- PRIVATE VAULT VIEW -->
+                <section id="view-vault" class="view-panel hidden space-y-6">
+                    <div id="vaultLockScreen" class="max-w-md mx-auto py-12 text-center bg-slate-800 rounded-3xl border border-slate-700 p-8 shadow-xl">
+                        <div class="w-20 h-20 rounded-full bg-rose-900/30 text-rose-400 flex items-center justify-center mx-auto mb-6 text-3xl border border-rose-800/40">
+                            <i class="fa-solid fa-user-shield"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-white mb-2">Private Vault Locked</h2>
+                        <p class="text-xs text-slate-400 mb-6">Confirm master passcode to view double-encrypted private files.</p>
+
+                        <div id="vaultPinInputsContainer" class="flex justify-center space-x-3 mb-6">
+                            <!-- Dynamically populated 4 or 6 pin inputs -->
+                        </div>
+
+                        <div id="vaultPinError" class="text-rose-400 text-xs mb-4 hidden font-medium">
+                            <i class="fa-solid fa-circle-exclamation mr-1"></i> Incorrect Passcode.
+                        </div>
+
+                        <button id="unlockVaultBtn" class="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl transition shadow-lg shadow-rose-600/20">
+                            Unlock Vault Section
+                        </button>
+                    </div>
+
+                    <div id="vaultUnlockedContent" class="hidden space-y-6">
+                        <div class="flex items-center justify-between bg-rose-900/20 border border-rose-800/40 p-4 rounded-2xl">
+                            <div class="flex items-center space-x-3">
+                                <i class="fa-solid fa-lock-open text-rose-400 text-xl"></i>
+                                <div>
+                                    <h3 class="font-bold text-white text-sm">Vault Unlocked</h3>
+                                    <p class="text-xs text-slate-400">Confidential items hidden from primary search views.</p>
+                                </div>
+                            </div>
+                            <button onclick="lockVaultSection()" class="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-semibold hover:bg-rose-700 transition">
+                                <i class="fa-solid fa-lock mr-1"></i> Lock Vault
+                            </button>
+                        </div>
+
+                        <div id="vaultGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            <!-- JS Populated Vault Docs -->
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- UPLOAD MODAL -->
+    <div id="uploadModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-800 w-full max-w-xl rounded-3xl shadow-2xl border border-slate-700 overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+                <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                    <i class="fa-solid fa-cloud-arrow-up text-brand-400"></i> Upload Document
+                </h3>
+                <button onclick="closeUploadModal()" class="text-slate-400 hover:text-slate-200">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form id="uploadForm" onsubmit="handleDocumentUpload(event)" class="p-6 overflow-y-auto space-y-4">
+                <div id="dropZone" class="border-2 border-dashed border-slate-600 hover:border-brand-500 rounded-2xl p-6 text-center cursor-pointer bg-slate-700/30 transition-all">
+                    <input type="file" id="fileInput" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg">
+                    <div id="dropZonePrompt">
+                        <i class="fa-solid fa-file-circle-plus text-3xl text-brand-400 mb-2"></i>
+                        <p class="text-sm font-semibold text-slate-200">Drag & Drop your file here or <span class="text-brand-400 underline">browse</span></p>
+                        <p class="text-xs text-slate-400 mt-1">Supports PDF, Word, Excel, Images</p>
+                    </div>
+                    <div id="dropZoneSuccess" class="hidden flex items-center justify-center space-x-3 text-emerald-400">
+                        <i class="fa-solid fa-circle-check text-2xl"></i>
+                        <span id="selectedFileName" class="font-semibold text-sm text-slate-200">filename.pdf</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Document Title *</label>
+                    <input type="text" id="docTitle" required placeholder="e.g. Health Insurance Policy 2026" class="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Category *</label>
+                        <select id="docCategory" required class="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Expiration Date (Optional)</label>
+                        <input type="date" id="docExpiry" class="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Tags (Comma Separated)</label>
+                    <input type="text" id="docTags" placeholder="Tax 2026, Renewal, Important" class="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Notes / Description</label>
+                    <textarea id="docNotes" rows="2" placeholder="Policy numbers, account IDs, renewal details..." class="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-brand-500"></textarea>
+                </div>
+
+                <div class="flex items-center justify-between pt-2">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="docIsFavorite" class="rounded text-brand-600 focus:ring-brand-500 w-4 h-4">
+                        <span class="text-xs font-medium text-slate-300">Star / Mark Favorite</span>
+                    </label>
+
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="docIsVault" class="rounded text-rose-600 focus:ring-rose-500 w-4 h-4">
+                        <span class="text-xs font-semibold text-rose-400">Store in Private Vault</span>
+                    </label>
+                </div>
+
+                <div class="pt-4 flex justify-end space-x-3 border-t border-slate-700">
+                    <button type="button" onclick="closeUploadModal()" class="px-4 py-2 border border-slate-600 text-slate-300 rounded-xl text-sm font-medium hover:bg-slate-700">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium shadow-md shadow-brand-600/20">Save Document</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- DOCUMENT DETAILS & VIEWER MODAL -->
+    <div id="detailModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-800 w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-700 overflow-hidden max-h-[92vh] flex flex-col">
+            <div id="detailHeader" class="px-6 py-4 border-b border-slate-700 flex items-center justify-between bg-slate-800/80">
+                <div class="flex items-center space-x-3 truncate">
+                    <div id="detailFileIcon" class="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold text-white bg-brand-600 shrink-0">
+                        <i class="fa-solid fa-file"></i>
+                    </div>
+                    <div class="truncate">
+                        <h3 id="detailTitle" class="font-bold text-white leading-snug truncate">Document Details</h3>
+                        <p id="detailSubtext" class="text-xs text-slate-400">Added Date</p>
+                    </div>
+                </div>
+                <button onclick="closeDetailModal()" class="text-slate-400 hover:text-slate-200 p-1">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-5">
+                <!-- LIVE VIEWER / PREVIEW CONTAINER -->
+                <div class="w-full min-h-[220px] max-h-[360px] bg-slate-950 rounded-2xl border border-slate-700 flex flex-col items-center justify-center p-2 relative overflow-hidden">
+                    <div id="liveViewerContent" class="w-full h-full flex flex-col items-center justify-center text-center overflow-auto p-4">
+                        <!-- Populated dynamically: <img>, <iframe/embed>, or generic file placeholder -->
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 text-xs">
+                    <div class="bg-slate-700/40 p-3 rounded-xl border border-slate-700">
+                        <span class="text-slate-400 block mb-1">Category</span>
+                        <span id="detailCategory" class="font-semibold text-slate-200">Personal</span>
+                    </div>
+                    <div class="bg-slate-700/40 p-3 rounded-xl border border-slate-700">
+                        <span class="text-slate-400 block mb-1">Expiration Status</span>
+                        <span id="detailExpiry" class="font-semibold text-slate-200">No Expiration Date</span>
+                    </div>
+                </div>
+
+                <div>
+                    <span class="text-xs font-semibold text-slate-400 block mb-2">Associated Tags</span>
+                    <div id="detailTags" class="flex flex-wrap gap-1.5"></div>
+                </div>
+
+                <div>
+                    <span class="text-xs font-semibold text-slate-400 block mb-1">Notes & Metadata</span>
+                    <textarea id="detailNotesInput" rows="3" class="w-full p-3 bg-slate-700/40 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-brand-500" placeholder="Add custom notes or reference IDs..."></textarea>
+                    <button onclick="saveNotesEdit()" class="mt-2 px-3 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-medium transition">Save Notes</button>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-700 bg-slate-800/80 flex items-center justify-between">
+                <button id="deleteDocBtn" class="px-3 py-2 text-rose-400 hover:bg-rose-900/30 rounded-xl text-xs font-semibold transition">
+                    <i class="fa-solid fa-trash mr-1"></i> Delete
+                </button>
+
+                <div class="flex items-center space-x-2">
+                    <button id="downloadDocBtn" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl text-xs font-medium transition">
+                        <i class="fa-solid fa-download mr-1"></i> Download
+                    </button>
+                    <button id="starToggleBtn" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-medium transition">
+                        <i class="fa-solid fa-star mr-1"></i> Favorite
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PASSCODE SETTINGS / CHANGE MODAL -->
+    <div id="passcodeSettingsModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-700 p-6 relative">
+            <button onclick="closePasscodeChangeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="font-bold text-lg text-white mb-1 flex items-center gap-2">
+                <i class="fa-solid fa-key text-brand-400"></i> Change Passcode
+            </h3>
+            <p class="text-xs text-slate-400 mb-5">Update your master vault passcode and pin length preference.</p>
+
+            <form onsubmit="handlePasscodeChange(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Current Passcode</label>
+                    <input type="password" id="currentPasscodeInput" required class="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Select Digits Length</label>
+                    <select id="newPasscodeLengthSelect" class="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+                        <option value="4">4 Digits Passcode</option>
+                        <option value="6">6 Digits Passcode</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">New Passcode</label>
+                    <input type="password" id="newPasscodeInput" required class="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-brand-500" placeholder="Enter numbers only">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Confirm New Passcode</label>
+                    <input type="password" id="confirmPasscodeInput" required class="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+                </div>
+
+                <p id="passcodeChangeError" class="text-rose-400 text-xs hidden font-medium"></p>
+                <p id="passcodeChangeSuccess" class="text-emerald-400 text-xs hidden font-medium"><i class="fa-solid fa-circle-check mr-1"></i> Passcode changed successfully!</p>
+
+                <div class="pt-3 flex justify-end gap-2">
+                    <button type="button" onclick="closePasscodeChangeModal()" class="px-4 py-2 border border-slate-600 text-slate-300 rounded-xl text-xs font-medium hover:bg-slate-700">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-medium shadow-md">Update Passcode</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const CATEGORIES = [
+            { id: 'Personal', name: 'Personal', icon: 'fa-user', color: 'bg-blue-500' },
+            { id: 'Finance', name: 'Finance', icon: 'fa-wallet', color: 'bg-emerald-500' },
+            { id: 'Tax', name: 'Tax', icon: 'fa-receipt', color: 'bg-purple-500' },
+            { id: 'Insurance', name: 'Insurance', icon: 'fa-shield-heart', color: 'bg-indigo-500' },
+            { id: 'Legal', name: 'Legal', icon: 'fa-scale-balanced', color: 'bg-amber-600' },
+            { id: 'Medical', name: 'Medical', icon: 'fa-notes-medical', color: 'bg-rose-500' },
+            { id: 'Travel', name: 'Travel', icon: 'fa-plane', color: 'bg-sky-500' },
+            { id: 'Home', name: 'Home', icon: 'fa-house', color: 'bg-teal-500' },
+            { id: 'Vehicle', name: 'Vehicle', icon: 'fa-car', color: 'bg-orange-500' },
+            { id: 'Business', name: 'Business', icon: 'fa-briefcase', color: 'bg-slate-500' }
+        ];
+
+        const ESSENTIAL_CHECKLIST = [
+            { id: 'chk_passport', title: 'Passport / Travel ID', category: 'Travel' },
+            { id: 'chk_tax2025', title: 'Tax Return 2025/2026', category: 'Tax' },
+            { id: 'chk_autoins', title: 'Auto Insurance Policy', category: 'Vehicle' },
+            { id: 'chk_health', title: 'Health Insurance Card', category: 'Medical' },
+            { id: 'chk_lease', title: 'Lease / Property Deed', category: 'Home' }
+        ];
+
+        const INITIAL_SAMPLES = [
+            {
+                id: 'doc_1',
+                title: 'US Passport Renewal',
+                category: 'Travel',
+                fileType: 'pdf',
+                fileSize: '3.2 MB',
+                uploadDate: '2026-01-10',
+                expiryDate: '2026-10-15',
+                tags: ['Passport', 'Important', 'Travel'],
+                notes: 'Passport renewal document. Renewal required before international trip.',
+                fileData: null,
+                isFavorite: true,
+                isVault: false
+            },
+            {
+                id: 'doc_2',
+                title: 'Auto Insurance Policy 2026',
+                category: 'Vehicle',
+                fileType: 'pdf',
+                fileSize: '1.8 MB',
+                uploadDate: '2026-02-01',
+                expiryDate: '2026-04-01',
+                tags: ['Renewal', 'Vehicle', 'Insurance'],
+                notes: 'Policy #99482-A. Premium due monthly.',
+                fileData: null,
+                isFavorite: true,
+                isVault: false
+            },
+            {
+                id: 'doc_3',
+                title: 'Federal Tax Return 2025',
+                category: 'Tax',
+                fileType: 'pdf',
+                fileSize: '4.1 MB',
+                uploadDate: '2026-02-20',
+                expiryDate: '',
+                tags: ['Tax 2026', 'Receipts', 'Important'],
+                notes: 'Filed electronically via TurboTax.',
+                fileData: null,
+                isFavorite: false,
+                isVault: true
+            }
+        ];
+
+        let state = {
+            documents: [],
+            currentView: 'dashboard',
+            selectedCategory: null,
+            searchQuery: '',
+            activeTagFilter: null,
+            sortBy: 'newest',
+            passcode: null,
+            passcodeLength: 4,
+            enteredPasscode: '',
+            isAppLocked: true,
+            vaultUnlocked: false,
+            activeDocId: null,
+            uploadedFileData: null
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            setupEventListeners();
+            renderCategories();
+            checkAppLockStatus();
+        });
+
+        function loadState() {
+            const savedDocs = localStorage.getItem('docuvault_documents');
+            state.documents = savedDocs ? JSON.parse(savedDocs) : INITIAL_SAMPLES;
+            state.passcode = localStorage.getItem('docuvault_passcode');
+            state.passcodeLength = parseInt(localStorage.getItem('docuvault_passcode_length')) || 4;
+            
+            if (!savedDocs) saveDocs();
+        }
+
+        function saveDocs() {
+            localStorage.setItem('docuvault_documents', JSON.stringify(state.documents));
+        }
+
+        function checkAppLockStatus() {
+            const lockScreen = document.getElementById('appLockScreen');
+            const title = document.getElementById('authScreenTitle');
+            const sub = document.getElementById('authScreenSubtitle');
+            const pinLenOpt = document.getElementById('pinLengthOption');
+
+            if (!state.passcode) {
+                title.innerText = "Setup Master Passcode";
+                sub.innerText = `Create a ${state.passcodeLength}-digit passcode to protect your documents`;
+                pinLenOpt.classList.remove('hidden');
+            } else {
+                title.innerText = "Unlock DocuVault";
+                sub.innerText = `Enter your master ${state.passcodeLength}-digit passcode to view files`;
+                pinLenOpt.classList.add('hidden');
+            }
+
+            renderPinDots();
+            renderVaultPinInputs();
+            document.getElementById('sidebarPasscodeLabel').innerText = `${state.passcodeLength}-Digit Passcode`;
+
+            lockScreen.classList.remove('hidden');
+            state.isAppLocked = true;
+            updatePinDots();
+        }
+
+        function setPasscodeLength(len) {
+            state.passcodeLength = len;
+            localStorage.setItem('docuvault_passcode_length', len);
+            
+            document.getElementById('lenBtn4').className = len === 4 ? 'px-3 py-1 text-xs rounded-lg bg-brand-600 text-white font-bold border border-brand-500' : 'px-3 py-1 text-xs rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-semibold border border-slate-700';
+            document.getElementById('lenBtn6').className = len === 6 ? 'px-3 py-1 text-xs rounded-lg bg-brand-600 text-white font-bold border border-brand-500' : 'px-3 py-1 text-xs rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-semibold border border-slate-700';
+            
+            clearKeypad();
+            checkAppLockStatus();
+        }
+
+        function renderPinDots() {
+            const container = document.getElementById('pinDotsContainer');
+            container.innerHTML = '';
+            for (let i = 0; i < state.passcodeLength; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'pin-dot w-4 h-4 rounded-full border-2 border-slate-700 bg-slate-800 transition-all';
+                container.appendChild(dot);
+            }
+        }
+
+        function renderVaultPinInputs() {
+            const container = document.getElementById('vaultPinInputsContainer');
+            container.innerHTML = '';
+            for (let i = 0; i < state.passcodeLength; i++) {
+                const input = document.createElement('input');
+                input.type = 'password';
+                input.maxLength = 1;
+                input.className = 'vault-pin-digit w-10 h-12 sm:w-12 sm:h-14 text-center text-xl font-bold rounded-xl border border-slate-600 bg-slate-700 text-white focus:outline-none focus:border-rose-500';
+                container.appendChild(input);
+            }
+
+            // Bind focus events
+            const vaultPinInputs = container.querySelectorAll('.vault-pin-digit');
+            vaultPinInputs.forEach((input, idx) => {
+                input.addEventListener('input', (e) => {
+                    if (e.target.value.length === 1 && idx < vaultPinInputs.length - 1) {
+                        vaultPinInputs[idx + 1].focus();
+                    }
+                });
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+                        vaultPinInputs[idx - 1].focus();
+                    }
+                });
+            });
+        }
+
+        function pressKeypad(digit) {
+            if (state.enteredPasscode.length < state.passcodeLength) {
+                state.enteredPasscode += digit;
+                updatePinDots();
+            }
+
+            if (state.enteredPasscode.length === state.passcodeLength) {
+                setTimeout(handlePasscodeSubmit, 150);
+            }
+        }
+
+        function deleteKeypadDigit() {
+            state.enteredPasscode = state.enteredPasscode.slice(0, -1);
+            updatePinDots();
+        }
+
+        function clearKeypad() {
+            state.enteredPasscode = '';
+            updatePinDots();
+        }
+
+        function updatePinDots() {
+            const dots = document.querySelectorAll('.pin-dot');
+            dots.forEach((dot, index) => {
+                if (index < state.enteredPasscode.length) {
+                    dot.classList.add('filled', 'bg-brand-500', 'border-brand-400');
+                    dot.classList.remove('bg-slate-800');
+                } else {
+                    dot.classList.remove('filled', 'bg-brand-500', 'border-brand-400');
+                    dot.classList.add('bg-slate-800');
+                }
+            });
+        }
+
+        function handlePasscodeSubmit() {
+            const err = document.getElementById('authErrorMsg');
+
+            if (!state.passcode) {
+                // First time setup
+                state.passcode = state.enteredPasscode;
+                localStorage.setItem('docuvault_passcode', state.passcode);
+                localStorage.setItem('docuvault_passcode_length', state.passcodeLength);
+                unlockApp();
+            } else if (state.enteredPasscode === state.passcode) {
+                unlockApp();
+            } else {
+                err.classList.remove('hidden');
+                clearKeypad();
+            }
+        }
+
+        function unlockApp() {
+            state.isAppLocked = false;
+            document.getElementById('appLockScreen').classList.add('hidden');
+            document.getElementById('authErrorMsg').classList.add('hidden');
+            clearKeypad();
+            renderApp();
+        }
+
+        function lockApp() {
+            state.vaultUnlocked = false;
+            state.enteredPasscode = '';
+            checkAppLockStatus();
+        }
+
+        function triggerResetPasscode() {
+            if (confirm("Are you sure you want to reset your passcode and data? This will clear all stored files.")) {
+                localStorage.clear();
+                state.documents = INITIAL_SAMPLES;
+                state.passcode = null;
+                state.passcodeLength = 4;
+                state.enteredPasscode = '';
+                saveDocs();
+                checkAppLockStatus();
+            }
+        }
+
+        function openPasscodeChangeModal() {
+            document.getElementById('currentPasscodeInput').value = '';
+            document.getElementById('newPasscodeInput').value = '';
+            document.getElementById('confirmPasscodeInput').value = '';
+            document.getElementById('newPasscodeLengthSelect').value = state.passcodeLength;
+            document.getElementById('passcodeChangeError').classList.add('hidden');
+            document.getElementById('passcodeChangeSuccess').classList.add('hidden');
+            document.getElementById('passcodeSettingsModal').classList.remove('hidden');
+        }
+
+        function closePasscodeChangeModal() {
+            document.getElementById('passcodeSettingsModal').classList.add('hidden');
+        }
+
+        function handlePasscodeChange(e) {
+            e.preventDefault();
+            const curr = document.getElementById('currentPasscodeInput').value;
+            const newLen = parseInt(document.getElementById('newPasscodeLengthSelect').value);
+            const newP = document.getElementById('newPasscodeInput').value;
+            const confP = document.getElementById('confirmPasscodeInput').value;
+            const err = document.getElementById('passcodeChangeError');
+            const succ = document.getElementById('passcodeChangeSuccess');
+
+            err.classList.add('hidden');
+            succ.classList.add('hidden');
+
+            if (curr !== state.passcode) {
+                err.innerText = "Current passcode is incorrect.";
+                err.classList.remove('hidden');
+                return;
+            }
+
+            if (!/^\d+$/.test(newP)) {
+                err.innerText = "New passcode must contain numbers only.";
+                err.classList.remove('hidden');
+                return;
+            }
+
+            if (newP.length !== newLen) {
+                err.innerText = `New passcode must be exactly ${newLen} digits long.`;
+                err.classList.remove('hidden');
+                return;
+            }
+
+            if (newP !== confP) {
+                err.innerText = "New passcodes do not match.";
+                err.classList.remove('hidden');
+                return;
+            }
+
+            // Save new passcode
+            state.passcode = newP;
+            state.passcodeLength = newLen;
+            localStorage.setItem('docuvault_passcode', state.passcode);
+            localStorage.setItem('docuvault_passcode_length', state.passcodeLength);
+
+            succ.classList.remove('hidden');
+            setTimeout(() => {
+                closePasscodeChangeModal();
+                checkAppLockStatus();
+            }, 1200);
+        }
+
+        function setupEventListeners() {
+            // Mobile navigation menu toggle
+            const mobileBtn = document.getElementById('mobileMenuBtn');
+            const sidebar = document.getElementById('sidebar');
+            const mobileOverlay = document.getElementById('mobileOverlay');
+
+            function toggleMobileMenu() {
+                sidebar.classList.toggle('-translate-x-full');
+                mobileOverlay.classList.toggle('hidden');
+            }
+
+            mobileBtn?.addEventListener('click', toggleMobileMenu);
+            mobileOverlay?.addEventListener('click', toggleMobileMenu);
+
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    state.selectedCategory = null;
+                    switchView(item.getAttribute('data-view'));
+                    if (window.innerWidth < 768) toggleMobileMenu();
+                });
+            });
+
+            // Global search filter
+            const searchInput = document.getElementById('globalSearchInput');
+            const clearSearchBtn = document.getElementById('clearSearchBtn');
+
+            searchInput?.addEventListener('input', (e) => {
+                state.searchQuery = e.target.value.trim().toLowerCase();
+                if (state.searchQuery) {
+                    clearSearchBtn.classList.remove('hidden');
+                    if (state.currentView !== 'documents') switchView('documents');
+                    else renderApp();
+                } else {
+                    clearSearchBtn.classList.add('hidden');
+                    renderApp();
+                }
+            });
+
+            clearSearchBtn?.addEventListener('click', () => {
+                searchInput.value = '';
+                state.searchQuery = '';
+                clearSearchBtn.classList.add('hidden');
+                renderApp();
+            });
+
+            document.getElementById('categoryFilter')?.addEventListener('change', (e) => {
+                state.selectedCategory = e.target.value === 'ALL' ? null : e.target.value;
+                renderApp();
+            });
+
+            document.getElementById('sortBySelect')?.addEventListener('change', (e) => {
+                state.sortBy = e.target.value;
+                renderApp();
+            });
+
+            document.getElementById('unlockVaultBtn')?.addEventListener('click', verifyVaultSectionPasscode);
+
+            // Drag and drop setup for upload modal
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileInput');
+
+            dropZone?.addEventListener('click', () => fileInput.click());
+            fileInput?.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) handleFileSelected(e.target.files[0]);
+            });
+        }
+
+        function renderCategories() {
+            const catNav = document.getElementById('categoryNavList');
+            const catFilter = document.getElementById('categoryFilter');
+            const docCatSelect = document.getElementById('docCategory');
+
+            catNav.innerHTML = '';
+            catFilter.innerHTML = '<option value="ALL">All Categories</option>';
+            docCatSelect.innerHTML = '';
+
+            CATEGORIES.forEach(cat => {
+                const count = state.documents.filter(d => d.category === cat.id && !d.isVault).length;
+                const a = document.createElement('a');
+                a.href = '#';
+                a.className = 'flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-700/50 transition';
+                a.innerHTML = `
+                    <div class="flex items-center space-x-2.5">
+                        <span class="w-2 h-2 rounded-full ${cat.color}"></span>
+                        <span>${cat.name}</span>
+                    </div>
+                    <span class="text-slate-500">${count}</span>
+                `;
+                a.onclick = (e) => {
+                    e.preventDefault();
+                    state.selectedCategory = cat.id;
+                    switchView('documents');
+                };
+                catNav.appendChild(a);
+
+                catFilter.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+                docCatSelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+            });
+        }
+
+        function switchView(viewName) {
+            state.currentView = viewName;
+            document.querySelectorAll('.view-panel').forEach(p => p.classList.add('hidden'));
+
+            const target = document.getElementById(`view-${viewName}`);
+            if (target) target.classList.remove('hidden');
+
+            document.querySelectorAll('.nav-item').forEach(item => {
+                if (item.getAttribute('data-view') === viewName && !state.selectedCategory) {
+                    item.classList.add('bg-slate-700', 'text-brand-400', 'font-semibold');
+                } else {
+                    item.classList.remove('bg-slate-700', 'text-brand-400', 'font-semibold');
+                }
+            });
+
+            renderApp();
+        }
+
+        function renderApp() {
+            updateBadges();
+            
+            if (state.currentView === 'dashboard') renderDashboard();
+            else if (state.currentView === 'documents') renderDocumentsGrid();
+            else if (state.currentView === 'expiring') renderExpiringView();
+            else if (state.currentView === 'favorites') renderFavoritesView();
+            else if (state.currentView === 'vault') renderVaultView();
+        }
+
+        function updateBadges() {
+            const nonVault = state.documents.filter(d => !d.isVault);
+            const expiringCount = nonVault.filter(d => isExpiringSoon(d.expiryDate)).length;
+            const favCount = nonVault.filter(d => d.isFavorite).length;
+
+            document.getElementById('allDocCountBadge').innerText = nonVault.length;
+            document.getElementById('expiringBadge').innerText = expiringCount;
+            document.getElementById('favoritesBadge').innerText = favCount;
+
+            document.getElementById('statTotalDocs').innerText = nonVault.length;
+            document.getElementById('statExpiringDocs').innerText = expiringCount;
+            document.getElementById('statFavoriteDocs').innerText = favCount;
+            document.getElementById('statVaultDocs').innerText = state.documents.filter(d => d.isVault).length;
+
+            // Storage Gauge Calculation
+            const totalMB = state.documents.reduce((acc, d) => acc + (parseFloat(d.fileSize) || 1.5), 0).toFixed(1);
+            document.getElementById('storageGaugeText').innerText = `${totalMB} MB / 100 MB Used`;
+            document.getElementById('storageGaugeBar').style.width = `${Math.min(100, (totalMB / 100) * 100)}%`;
+        }
+
+        function renderDashboard() {
+            const expiringContainer = document.getElementById('dashExpiringList');
+            const expiringDocs = state.documents
+                .filter(d => !d.isVault && d.expiryDate)
+                .map(d => ({ ...d, daysLeft: getDaysRemaining(d.expiryDate) }))
+                .filter(d => d.daysLeft <= 90)
+                .sort((a, b) => a.daysLeft - b.daysLeft)
+                .slice(0, 3);
+
+            if (expiringDocs.length === 0) {
+                expiringContainer.innerHTML = `
+                    <div class="col-span-full py-4 text-center text-xs text-slate-400">
+                        <i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i> No urgent expirations detected.
+                    </div>
+                `;
+            } else {
+                expiringContainer.innerHTML = expiringDocs.map(doc => {
+                    const badge = getExpiryBadge(doc.daysLeft);
+                    return `
+                        <div onclick="openDetailModal('${doc.id}')" class="bg-slate-800 p-3.5 rounded-xl border border-slate-700 flex items-center justify-between cursor-pointer hover:border-slate-600 transition">
+                            <div class="flex items-center space-x-3 overflow-hidden">
+                                <div class="w-9 h-9 rounded-lg bg-amber-900/40 text-amber-400 flex items-center justify-center font-bold text-sm shrink-0">
+                                    <i class="fa-solid fa-clock"></i>
+                                </div>
+                                <div class="truncate">
+                                    <h4 class="font-semibold text-xs text-slate-100 truncate">${doc.title}</h4>
+                                    <p class="text-[11px] text-slate-400">${doc.category} • ${doc.expiryDate}</p>
+                                </div>
+                            </div>
+                            <span class="text-[10px] font-bold px-2 py-1 rounded-full shrink-0 ${badge.class}">${badge.text}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            const recentContainer = document.getElementById('recentDocsList');
+            const recentDocs = [...state.documents]
+                .filter(d => !d.isVault)
+                .sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate))
+                .slice(0, 5);
+
+            recentContainer.innerHTML = recentDocs.map(doc => `
+                <div onclick="openDetailModal('${doc.id}')" class="py-3 flex items-center justify-between hover:bg-slate-700/30 px-2 rounded-xl transition cursor-pointer">
+                    <div class="flex items-center space-x-3 truncate">
+                        <div class="w-8 h-8 rounded-lg bg-brand-900/30 text-brand-400 flex items-center justify-center text-sm font-bold shrink-0">
+                            <i class="${getFileIconClass(doc.fileType)}"></i>
+                        </div>
+                        <div class="truncate">
+                            <p class="text-xs font-semibold text-slate-200 truncate">${doc.title}</p>
+                            <p class="text-[11px] text-slate-400">${doc.category} • ${doc.fileSize}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2 text-xs text-slate-500 shrink-0">
+                        <span>${doc.uploadDate}</span>
+                        <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                    </div>
+                </div>
+            `).join('');
+
+            renderChecklist();
+        }
+
+        function renderChecklist() {
+            const container = document.getElementById('missingChecklist');
+            let completedCount = 0;
+
+            container.innerHTML = ESSENTIAL_CHECKLIST.map(item => {
+                const exists = state.documents.some(d => 
+                    d.category.toLowerCase() === item.category.toLowerCase() || 
+                    d.title.toLowerCase().includes(item.title.toLowerCase())
+                );
+                if (exists) completedCount++;
+
+                return `
+                    <div class="flex items-center justify-between p-2.5 rounded-xl border ${exists ? 'bg-emerald-900/10 border-emerald-800/30' : 'bg-slate-700/30 border-slate-700'}">
+                        <div class="flex items-center space-x-2.5">
+                            <i class="fa-solid ${exists ? 'fa-circle-check text-emerald-400' : 'fa-circle text-slate-600'} text-sm"></i>
+                            <span class="text-xs font-medium ${exists ? 'text-slate-300 line-through opacity-80' : 'text-slate-200'}">${item.title}</span>
+                        </div>
+                        ${exists ? 
+                            `<span class="text-[10px] bg-emerald-900/40 text-emerald-300 px-2 py-0.5 rounded-full font-semibold">Protected</span>` : 
+                            `<button onclick="openUploadModal('${item.category}', '${item.title}')" class="text-[10px] bg-brand-600 text-white px-2 py-1 rounded-lg font-semibold hover:bg-brand-700 transition">+ Add</button>`
+                        }
+                    </div>
+                `;
+            }).join('');
+
+            const pct = Math.round((completedCount / ESSENTIAL_CHECKLIST.length) * 100);
+            document.getElementById('checklistPercent').innerText = `${pct}%`;
+            document.getElementById('checklistBar').style.width = `${pct}%`;
+        }
+
+        function getFilteredDocuments() {
+            return state.documents.filter(doc => {
+                if (doc.isVault && state.currentView !== 'vault') return false;
+                if (state.selectedCategory && doc.category !== state.selectedCategory) return false;
+                if (state.searchQuery) {
+                    const q = state.searchQuery;
+                    const matchesTitle = doc.title.toLowerCase().includes(q);
+                    const matchesCat = doc.category.toLowerCase().includes(q);
+                    const matchesNotes = doc.notes.toLowerCase().includes(q);
+                    const matchesTags = doc.tags.some(t => t.toLowerCase().includes(q));
+                    if (!matchesTitle && !matchesCat && !matchesNotes && !matchesTags) return false;
+                }
+                return true;
+            }).sort((a, b) => {
+                if (state.sortBy === 'newest') return new Date(b.uploadDate) - new Date(a.uploadDate);
+                if (state.sortBy === 'oldest') return new Date(a.uploadDate) - new Date(b.uploadDate);
+                if (state.sortBy === 'title') return a.title.localeCompare(b.title);
+                return 0;
+            });
+        }
+
+        function renderDocumentsGrid() {
+            const docs = getFilteredDocuments();
+            const grid = document.getElementById('documentGrid');
+            const noDocs = document.getElementById('noDocsState');
+
+            document.getElementById('docViewTitle').innerText = state.selectedCategory ? `${state.selectedCategory} Documents` : 'All Documents';
+
+            if (docs.length === 0) {
+                grid.innerHTML = '';
+                noDocs.classList.remove('hidden');
+                return;
+            }
+
+            noDocs.classList.add('hidden');
+            grid.innerHTML = docs.map(doc => renderDocumentCardHTML(doc)).join('');
+        }
+
+        function renderDocumentCardHTML(doc) {
+            const daysLeft = doc.expiryDate ? getDaysRemaining(doc.expiryDate) : null;
+            const badge = daysLeft !== null ? getExpiryBadge(daysLeft) : null;
+
+            return `
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 flex flex-col justify-between shadow-sm hover:border-slate-600 transition-all group relative">
+                    <div>
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="w-10 h-10 rounded-xl bg-slate-700 text-brand-400 flex items-center justify-center font-bold text-lg">
+                                <i class="${getFileIconClass(doc.fileType)}"></i>
+                            </div>
+                            <div class="flex items-center space-x-1">
+                                <button onclick="toggleFavorite('${doc.id}', event)" class="p-1.5 text-slate-600 hover:text-yellow-400 transition">
+                                    <i class="fa-solid fa-star ${doc.isFavorite ? 'text-yellow-400' : ''}"></i>
+                                </button>
+                                <button onclick="openDetailModal('${doc.id}')" class="p-1.5 text-slate-400 hover:text-slate-200">
+                                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <h4 onclick="openDetailModal('${doc.id}')" class="font-bold text-sm text-slate-100 mb-1 hover:text-brand-400 cursor-pointer line-clamp-1">${doc.title}</h4>
+                        <div class="flex items-center space-x-2 text-[11px] text-slate-400 mb-3">
+                            <span class="font-medium text-slate-400">${doc.category}</span>
+                            <span>•</span>
+                            <span>${doc.fileSize}</span>
+                        </div>
+
+                        <div class="flex flex-wrap gap-1 mb-3">
+                            ${doc.tags.map(t => `<span class="text-[10px] px-2 py-0.5 rounded-md bg-slate-700/60 text-slate-300 font-medium">#${t}</span>`).join('')}
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-700/60 flex items-center justify-between text-[11px]">
+                        ${badge ? `<span class="font-semibold px-2 py-0.5 rounded-full ${badge.class}">${badge.text}</span>` : `<span class="text-slate-500">Added ${doc.uploadDate}</span>`}
+                        <button onclick="openDetailModal('${doc.id}')" class="text-brand-400 font-semibold hover:underline">View File</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderVaultView() {
+            const lockScreen = document.getElementById('vaultLockScreen');
+            const content = document.getElementById('vaultUnlockedContent');
+            const grid = document.getElementById('vaultGrid');
+
+            if (!state.vaultUnlocked) {
+                lockScreen.classList.remove('hidden');
+                content.classList.add('hidden');
+            } else {
+                lockScreen.classList.add('hidden');
+                content.classList.remove('hidden');
+                const vaultDocs = state.documents.filter(d => d.isVault);
+                grid.innerHTML = vaultDocs.length === 0 ? `<p class="col-span-full py-12 text-center text-xs text-slate-400">Vault is empty.</p>` : vaultDocs.map(doc => renderDocumentCardHTML(doc)).join('');
+            }
+        }
+
+        function verifyVaultSectionPasscode() {
+            const digits = Array.from(document.querySelectorAll('.vault-pin-digit')).map(i => i.value).join('');
+            if (digits === state.passcode) {
+                state.vaultUnlocked = true;
+                document.getElementById('vaultPinError').classList.add('hidden');
+                renderVaultView();
+            } else {
+                document.getElementById('vaultPinError').classList.remove('hidden');
+            }
+        }
+
+        function lockVaultSection() {
+            state.vaultUnlocked = false;
+            document.querySelectorAll('.vault-pin-digit').forEach(i => i.value = '');
+            renderVaultView();
+        }
+
+        function openUploadModal(category = '', title = '') {
+            document.getElementById('uploadForm').reset();
+            state.uploadedFileData = null;
+            document.getElementById('dropZonePrompt').classList.remove('hidden');
+            document.getElementById('dropZoneSuccess').classList.add('hidden');
+            if (category) document.getElementById('docCategory').value = category;
+            if (title) document.getElementById('docTitle').value = title;
+            document.getElementById('uploadModal').classList.remove('hidden');
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').classList.add('hidden');
+        }
+
+        function handleFileSelected(file) {
+            const reader = new FileReader();
+            const ext = file.name.split('.').pop().toLowerCase();
+
+            reader.onload = function(e) {
+                state.uploadedFileData = e.target.result;
+            };
+            reader.readAsDataURL(file);
+
+            document.getElementById('selectedFileName').innerText = file.name;
+            document.getElementById('dropZonePrompt').classList.add('hidden');
+            document.getElementById('dropZoneSuccess').classList.remove('hidden');
+        }
+
+        function handleDocumentUpload(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            const fileExt = file ? file.name.split('.').pop().toLowerCase() : 'pdf';
+            const calculatedSize = file ? (file.size / (1024 * 1024)).toFixed(1) + ' MB' : '1.5 MB';
+
+            const newDoc = {
+                id: 'doc_' + Date.now(),
+                title: document.getElementById('docTitle').value,
+                category: document.getElementById('docCategory').value,
+                fileType: fileExt,
+                fileSize: calculatedSize,
+                uploadDate: new Date().toISOString().split('T')[0],
+                expiryDate: document.getElementById('docExpiry').value,
+                tags: document.getElementById('docTags').value ? document.getElementById('docTags').value.split(',').map(t => t.trim()) : ['General'],
+                notes: document.getElementById('docNotes').value,
+                fileData: state.uploadedFileData,
+                isFavorite: document.getElementById('docIsFavorite').checked,
+                isVault: document.getElementById('docIsVault').checked
+            };
+
+            state.documents.unshift(newDoc);
+            saveDocs();
+            closeUploadModal();
+            renderApp();
+        }
+
+        function openDetailModal(docId) {
+            const doc = state.documents.find(d => d.id === docId);
+            if (!doc) return;
+            state.activeDocId = docId;
+
+            document.getElementById('detailTitle').innerText = doc.title;
+            document.getElementById('detailSubtext').innerText = `Added ${doc.uploadDate} • ${doc.fileSize}`;
+            document.getElementById('detailCategory').innerText = doc.category;
+            document.getElementById('detailNotesInput').value = doc.notes || '';
+
+            // RENDER LIVE PREVIEW / DOCUMENT VIEWER
+            const viewerContainer = document.getElementById('liveViewerContent');
+            const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes((doc.fileType || '').toLowerCase());
+            
+            if (doc.fileData) {
+                if (isImage) {
+                    viewerContainer.innerHTML = `<img src="${doc.fileData}" alt="${doc.title}" class="max-h-[300px] object-contain rounded-lg border border-slate-700 shadow-md">`;
+                } else {
+                    viewerContainer.innerHTML = `<embed src="${doc.fileData}" type="application/${doc.fileType === 'pdf' ? 'pdf' : 'octet-stream'}" class="w-full h-[280px] rounded-lg">`;
+                }
+            } else {
+                // Fallback / Placeholder view
+                viewerContainer.innerHTML = `
+                    <i class="${getFileIconClass(doc.fileType)} text-5xl mb-2"></i>
+                    <p class="text-sm font-semibold text-slate-200">${doc.title}.${doc.fileType}</p>
+                    <p class="text-xs text-slate-400 mt-1">Encrypted File Loaded in Vault</p>
+                `;
+            }
+
+            document.getElementById('detailTags').innerHTML = doc.tags.map(t => `<span class="text-xs px-2.5 py-1 rounded-lg bg-slate-700 text-slate-300 font-medium">#${t}</span>`).join('');
+
+            document.getElementById('deleteDocBtn').onclick = () => {
+                if (confirm('Delete this document?')) {
+                    state.documents = state.documents.filter(d => d.id !== docId);
+                    saveDocs();
+                    closeDetailModal();
+                    renderApp();
+                }
+            };
+
+            document.getElementById('downloadDocBtn').onclick = () => {
+                if (doc.fileData) {
+                    const a = document.createElement('a');
+                    a.href = doc.fileData;
+                    a.download = `${doc.title}.${doc.fileType}`;
+                    a.click();
+                } else {
+                    alert('Simulated file download initiated.');
+                }
+            };
+
+            document.getElementById('detailModal').classList.remove('hidden');
+        }
+
+        function saveNotesEdit() {
+            const doc = state.documents.find(d => d.id === state.activeDocId);
+            if (doc) {
+                doc.notes = document.getElementById('detailNotesInput').value;
+                saveDocs();
+                renderApp();
+            }
+        }
+
+        function closeDetailModal() {
+            document.getElementById('detailModal').classList.add('hidden');
+        }
+
+        function toggleFavorite(docId, event) {
+            if (event) event.stopPropagation();
+            const doc = state.documents.find(d => d.id === docId);
+            if (doc) {
+                doc.isFavorite = !doc.isFavorite;
+                saveDocs();
+                renderApp();
+            }
+        }
+
+        function getDaysRemaining(dateStr) {
+            if (!dateStr) return 999;
+            const today = new Date(); today.setHours(0,0,0,0);
+            return Math.ceil((new Date(dateStr) - today) / (1000 * 60 * 60 * 24));
+        }
+
+        function getExpiryBadge(daysLeft) {
+            if (daysLeft < 0) return { text: 'Expired', class: 'bg-rose-900/40 text-rose-300' };
+            if (daysLeft <= 30) return { text: `${daysLeft}d left`, class: 'bg-rose-900/40 text-rose-300' };
+            if (daysLeft <= 90) return { text: `${daysLeft}d left`, class: 'bg-amber-900/40 text-amber-300' };
+            return { text: `${daysLeft}d left`, class: 'bg-slate-700 text-slate-300' };
+        }
+
+        function isExpiringSoon(dateStr) {
+            return dateStr && getDaysRemaining(dateStr) <= 90;
+        }
+
+        function getFileIconClass(type) {
+            switch ((type || '').toLowerCase()) {
+                case 'pdf': return 'fa-solid fa-file-pdf text-rose-400';
+                case 'doc': case 'docx': return 'fa-solid fa-file-word text-blue-400';
+                case 'xls': case 'xlsx': return 'fa-solid fa-file-excel text-emerald-400';
+                case 'png': case 'jpg': case 'jpeg': return 'fa-solid fa-file-image text-purple-400';
+                default: return 'fa-solid fa-file-lines text-slate-400';
+            }
+        }
+
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.documents, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", `DocuVault_Backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+        }
+    </script>
+</body>
+</html>
